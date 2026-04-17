@@ -71,7 +71,7 @@ export function clearToken(): void {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   // Auto-inject Authorization header if token exists
