@@ -1,6 +1,6 @@
 import type { Song } from '../types/song';
 
-export const songs: Song[] = [
+export const presetSongs: Song[] = [
   {
     id: 'zouzaiguixiangdelushang',
     title: '走在归乡的路上',
@@ -13,6 +13,7 @@ export const songs: Song[] = [
     chords: 'E - C#m - A - B',
     cover: '🏠',
     audio: { mix: '/audio/zouzaiguixiangdelushang/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'xiaoxingyun',
@@ -26,6 +27,7 @@ export const songs: Song[] = [
     chords: 'C - G - Am - F',
     cover: '🍀',
     audio: { mix: '/audio/xiaoxingyun/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'pingfanzhilu',
@@ -39,6 +41,7 @@ export const songs: Song[] = [
     chords: 'Am - C - F - G',
     cover: '🛤️',
     audio: { mix: '/audio/pingfanzhilu/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'yequ',
@@ -52,6 +55,7 @@ export const songs: Song[] = [
     chords: 'Am - Dm - G - C',
     cover: '🌙',
     audio: { mix: '/audio/yequ/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'qingfeideiyi',
@@ -65,6 +69,7 @@ export const songs: Song[] = [
     chords: 'C - Am - Dm - G',
     cover: '💫',
     audio: { mix: '/audio/qingfeideiyi/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'naxienian',
@@ -78,6 +83,7 @@ export const songs: Song[] = [
     chords: 'C - G - Am - Em - F',
     cover: '📖',
     audio: { mix: '/audio/naxienian/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'haikuotiankong',
@@ -91,6 +97,7 @@ export const songs: Song[] = [
     chords: 'C - Am - F - G',
     cover: '🌊',
     audio: { mix: '/audio/haikuotiankong/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'banmabanma',
@@ -104,6 +111,7 @@ export const songs: Song[] = [
     chords: 'Em - C - G - D',
     cover: '🦓',
     audio: { mix: '/audio/banmabanma/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'chengdu',
@@ -117,6 +125,7 @@ export const songs: Song[] = [
     chords: 'C - Am - F - G',
     cover: '🏙️',
     audio: { mix: '/audio/chengdu/mix.mp3' },
+    source: 'preset',
   },
   {
     id: 'lanlianhua',
@@ -130,5 +139,6 @@ export const songs: Song[] = [
     chords: 'Am - G - F - Em',
     cover: '🪷',
     audio: { mix: '/audio/lanlianhua/mix.mp3' },
+    source: 'preset',
   },
 ];

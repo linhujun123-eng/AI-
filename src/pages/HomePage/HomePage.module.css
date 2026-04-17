@@ -10,8 +10,14 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
   padding: 12px 0 20px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .logo {
@@ -36,6 +42,63 @@
   font-size: 14px;
   color: var(--text2);
   margin-top: 2px;
+}
+
+/* Auth area */
+.authArea {
+  flex-shrink: 0;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.username {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loginBtn {
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.loginBtn:hover {
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.logoutBtn {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-border);
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.logoutBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
 }
 
 /* Stats */
@@ -70,6 +133,85 @@
   gap: 10px;
 }
 
+/* Section labels (我的上传 / 预置曲目) */
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  padding: 12px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sectionLabel:first-child {
+  padding-top: 0;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text2);
+  font-size: 14px;
+}
+
+/* Upload entry card */
+.uploadCard {
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  background: transparent;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+
+.uploadCard:hover {
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.03);
+}
+
+.uploadCard:active {
+  transform: scale(0.98);
+}
+
+.uploadInner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 4px 0;
+}
+
+.uploadIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 229, 255, 0.06);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.uploadText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.uploadTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cyan);
+}
+
+.uploadSub {
+  font-size: 13px;
+  color: var(--text2);
+}
+
 /* Footer */
 .footer {
   text-align: center;
@@ -89,6 +231,10 @@
     padding: 8px 0 16px;
   }
 
+  .headerLeft {
+    gap: 10px;
+  }
+
   .logo {
     width: 44px;
     height: 44px;
@@ -102,6 +248,32 @@
   .stats {
     font-size: 12px;
     padding: 8px 12px;
+  }
+
+  .uploadIcon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .uploadTitle {
+    font-size: 15px;
+  }
+
+  .username {
+    max-width: 80px;
+    font-size: 13px;
+  }
+
+  .loginBtn {
+    font-size: 13px;
+    padding: 6px 14px;
+    min-height: 34px;
+  }
+
+  .logoutBtn {
+    font-size: 12px;
+    padding: 5px 10px;
   }
 }
 
@@ -145,6 +317,30 @@
 
   .list {
     gap: 8px;
+  }
+
+  .sectionLabel {
+    font-size: 12px;
+    padding: 8px 0 2px;
+  }
+
+  .uploadIcon {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    border-radius: 8px;
+  }
+
+  .uploadInner {
+    gap: 10px;
+  }
+
+  .uploadTitle {
+    font-size: 14px;
+  }
+
+  .uploadSub {
+    font-size: 12px;
   }
 
   .footer {

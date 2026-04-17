@@ -59,3 +59,67 @@
     margin-bottom: 8px;
   }
 }
+
+/* ---- Chord recognition status bar (user songs) ---- */
+
+.chordStatusBar {
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  font-size: 13px;
+}
+
+.chordStatusProcessing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cyan, #00e5ff);
+}
+
+.statusSpinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(0, 229, 255, 0.25);
+  border-top-color: var(--cyan, #00e5ff);
+  border-radius: 50%;
+  animation: statusSpin 0.8s linear infinite;
+}
+
+@keyframes statusSpin {
+  to { transform: rotate(360deg); }
+}
+
+.chordStatusError {
+  color: var(--pink, #ff2d95);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chordStatusIdle {
+  color: var(--text2);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.retryBtn {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill, 20px);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  color: var(--cyan, #00e5ff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.retryBtn:hover {
+  background: rgba(0, 229, 255, 0.2);
+}

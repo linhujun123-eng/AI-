@@ -15,11 +15,13 @@ export function TopBar({ song }: TopBarProps) {
         ←
       </button>
       <div className={styles.info}>
-        <span className={styles.emoji}>{song.cover}</span>
+        <span className={styles.emoji}>{song.cover || '🎵'}</span>
         <div>
           <h1 className={styles.title}>{song.title}</h1>
           <p className={styles.meta}>
-            {song.artist} · BPM {song.bpm} · {song.key}
+            {song.artist}
+            {song.bpm ? ` · BPM ${song.bpm}` : ''}
+            {song.key ? ` · ${song.key}` : ''}
           </p>
         </div>
       </div>
