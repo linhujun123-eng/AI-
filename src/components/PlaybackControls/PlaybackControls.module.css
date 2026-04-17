@@ -1,0 +1,243 @@
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* === Time row === */
+.timeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text2);
+  min-width: 40px;
+  text-align: center;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--grad);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+/* === Play row === */
+.playRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.playBtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  transition: box-shadow 0.2s, transform 0.1s;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.25);
+}
+
+.playBtn:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
+}
+
+.playBtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.playBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.playBtn.playing {
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
+}
+
+.seekBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: box-shadow 0.2s;
+}
+
+.seekBtn:hover:not(:disabled) {
+  box-shadow: var(--glow-cyan);
+}
+
+.seekBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* === AB Loop row === */
+.abRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.abBtn {
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text2);
+  transition: all 0.2s;
+}
+
+.abBtn:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.abBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.abBtn.abSet {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+
+.loopBadge {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--cyan);
+  padding: 4px 10px;
+  background: rgba(0, 229, 255, 0.08);
+  border-radius: var(--radius-pill);
+}
+
+.clearBtn {
+  font-size: 12px;
+  color: var(--pink);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 45, 149, 0.3);
+  transition: all 0.2s;
+}
+
+.clearBtn:hover {
+  background: rgba(255, 45, 149, 0.1);
+  box-shadow: var(--glow-pink);
+}
+
+/* === Speed row === */
+.speedRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.speedLabel {
+  font-size: 12px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+.speedPresets {
+  display: flex;
+  gap: 6px;
+}
+
+.speedBtn {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--panel-border);
+  color: var(--text2);
+  transition: all 0.15s;
+}
+
+.speedBtn:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.speedBtn.speedActive {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: rgba(168, 85, 247, 0.1);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+}
+
+.speedFine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.speedStep {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text2);
+  transition: all 0.15s;
+}
+
+.speedStep:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.speedValue {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+  min-width: 48px;
+  text-align: center;
+}
+
+/* === Mobile: hidden, replaced by BottomBar === */
+@media (max-width: 768px) {
+  .controls {
+    display: none;
+  }
+}

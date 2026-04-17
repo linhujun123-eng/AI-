@@ -1,0 +1,79 @@
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.waveform {
+  width: 100%;
+  min-height: 100px;
+  /* Scroll mode: container has overflow for the zoomed-in waveform */
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hide scrollbar for clean look — scroll is auto-driven */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 255, 0.3) transparent;
+}
+
+.waveform::-webkit-scrollbar {
+  height: 4px;
+}
+
+.waveform::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.waveform::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.3);
+  border-radius: 2px;
+}
+
+/* WaveSurfer region styling override */
+.panel :global(.wavesurfer-region) {
+  border-left: 2px solid var(--cyan) !important;
+  border-right: 2px solid var(--cyan) !important;
+}
+
+/* Chord marker label positioning */
+.panel :global(.chord-marker-label) {
+  user-select: none;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .panel {
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .panel :global(.chord-marker-label) {
+    font-size: 7px !important;
+  }
+}
+
+/* Phone */
+@media (max-width: 480px) {
+  .panel {
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .waveform {
+    min-height: 72px;
+    /* Increase scrollbar size for touch scrolling */
+    scrollbar-width: auto;
+  }
+
+  .waveform::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .panel :global(.chord-marker-label) {
+    font-size: 7px !important;
+  }
+}

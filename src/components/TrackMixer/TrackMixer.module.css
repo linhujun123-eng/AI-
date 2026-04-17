@@ -1,0 +1,411 @@
+.container {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px 16px;
+}
+
+/* ── Activate button (collapsed state) ── */
+.activateBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px dashed var(--panel-border);
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text2);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.activateBtn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.activateIcon {
+  font-size: 18px;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1, #eee);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resetBtn {
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text2);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.resetBtn:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.closeBtn {
+  padding: 2px 6px;
+  font-size: 13px;
+  color: var(--text2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.closeBtn:hover {
+  color: var(--pink, #ff2d95);
+}
+
+/* ── Loading ── */
+.loading {
+  font-size: 12px;
+  color: var(--cyan);
+  font-family: var(--mono);
+}
+
+.progressBar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--grad, linear-gradient(90deg, #00e5ff, #a855f7));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Track list ── */
+.tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Individual track row ── */
+.trackRow {
+  display: grid;
+  grid-template-columns: 90px 52px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  transition: opacity 0.2s;
+}
+
+.trackMuted {
+  opacity: 0.4;
+}
+
+.trackInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.trackIcon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.trackLabel {
+  font-size: 12px;
+  color: var(--text1, #eee);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Mute / Solo buttons ── */
+.trackControls {
+  display: flex;
+  gap: 4px;
+}
+
+.muteBtn,
+.soloBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.muteBtn {
+  color: var(--text2);
+}
+
+.muteBtn:hover {
+  border-color: var(--pink, #ff2d95);
+  color: var(--pink, #ff2d95);
+}
+
+.muteBtnActive {
+  background: var(--pink, #ff2d95);
+  border-color: var(--pink, #ff2d95);
+  color: #000;
+}
+
+.soloBtn {
+  color: var(--text2);
+}
+
+.soloBtn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.soloBtnActive {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: #000;
+}
+
+/* ── Volume slider ── */
+.sliderWrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    var(--track-color, var(--cyan)) 0%,
+    var(--track-color, var(--cyan)) var(--fill-pct, 83%),
+    rgba(255, 255, 255, 0.08) var(--fill-pct, 83%),
+    rgba(255, 255, 255, 0.08) 100%
+  );
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--track-color, var(--cyan));
+  box-shadow: 0 0 6px var(--track-color, var(--cyan));
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 12px var(--track-color, var(--cyan));
+}
+
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: var(--track-color, var(--cyan));
+  box-shadow: 0 0 6px var(--track-color, var(--cyan));
+  cursor: pointer;
+}
+
+.slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track-color, var(--cyan));
+}
+
+/* ── Volume label ── */
+.trackVolume {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: right;
+  font-weight: 600;
+  min-width: 40px;
+}
+
+/* ── Tablet ── */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px 12px;
+  }
+
+  .trackRow {
+    grid-template-columns: 72px 52px 1fr 38px;
+    gap: 6px;
+  }
+
+  .trackLabel {
+    font-size: 11px;
+  }
+
+  .trackVolume {
+    font-size: 10px;
+    min-width: 34px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ── Phone: compact single-row, unified color ── */
+@media (max-width: 480px) {
+  .container {
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .header {
+    margin-bottom: 6px;
+  }
+
+  .tracks {
+    gap: 0;
+  }
+
+  /* Single-row grid: icon+label | M S | slider | % */
+  .trackRow {
+    display: grid;
+    grid-template-columns: 56px 48px 1fr 32px;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  }
+
+  .trackRow:last-child {
+    border-bottom: none;
+  }
+
+  .trackIcon {
+    font-size: 13px;
+  }
+
+  .trackLabel {
+    font-size: 11px;
+  }
+
+  .trackControls {
+    gap: 3px;
+  }
+
+  .muteBtn,
+  .soloBtn {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    font-size: 9px;
+    /* Override global 44px min for these small toggle buttons */
+    min-height: 20px;
+    min-width: 20px;
+  }
+
+  .sliderWrap {
+    width: 100%;
+  }
+
+  /* Unified cyan color for all sliders — reduce visual noise */
+  .slider {
+    height: 3px;
+    background: linear-gradient(
+      to right,
+      var(--cyan) 0%,
+      var(--cyan) var(--fill-pct, 83%),
+      rgba(255, 255, 255, 0.06) var(--fill-pct, 83%),
+      rgba(255, 255, 255, 0.06) 100%
+    ) !important;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--cyan) !important;
+    box-shadow: 0 0 4px rgba(0, 229, 255, 0.4) !important;
+  }
+
+  .slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--cyan) !important;
+    box-shadow: 0 0 4px rgba(0, 229, 255, 0.4) !important;
+  }
+
+  .slider::-moz-range-progress {
+    background: var(--cyan) !important;
+  }
+
+  /* Unified text color for volume % */
+  .trackVolume {
+    font-size: 10px;
+    min-width: 28px;
+    color: var(--text2) !important;
+  }
+
+  .activateBtn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .resetBtn {
+    min-height: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .closeBtn {
+    min-height: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

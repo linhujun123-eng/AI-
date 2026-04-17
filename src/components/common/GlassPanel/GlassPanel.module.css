@@ -1,0 +1,14 @@
+.glass {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .glass {
+    padding: 12px;
+  }
+}

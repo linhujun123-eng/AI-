@@ -1,0 +1,305 @@
+/* ── Bottom Bar: fixed at bottom on mobile ── */
+
+.wrapper {
+  display: none; /* Hidden on desktop — PlaybackControls used instead */
+}
+
+@media (max-width: 768px) {
+  .wrapper {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(10, 10, 18, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--panel-border);
+    padding: 0 12px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── Progress bar ── */
+  .progressTrack {
+    height: 2px;
+    background: rgba(255, 255, 255, 0.06);
+    width: 100%;
+  }
+
+  .progressBar {
+    height: 100%;
+    background: var(--grad);
+    transition: width 0.15s linear;
+  }
+
+  /* ── Time ── */
+  .timeRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 0 0;
+  }
+
+  .time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text2);
+  }
+
+  .timeSep {
+    font-size: 10px;
+    color: var(--text2);
+    opacity: 0.4;
+  }
+
+  /* ── Main controls row ── */
+  .controlsRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 8px;
+    gap: 8px;
+  }
+
+  /* ── AB Group (left) ── */
+  .abGroup {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 64px;
+  }
+
+  .abBtn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    /* Override global 44px min for compact AB buttons */
+    min-height: 28px;
+    min-width: 28px;
+  }
+
+  .abBtn:disabled {
+    opacity: 0.3;
+  }
+
+  .abActive {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(0, 229, 255, 0.1);
+  }
+
+  .loopBadge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--pink);
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 45, 149, 0.3);
+    background: rgba(255, 45, 149, 0.08);
+    /* Override global 44px min */
+    min-height: 24px;
+    min-width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Transport (center) ── */
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .playBtn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--grad);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    color: #fff;
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.2);
+    transition: transform 0.1s, box-shadow 0.2s;
+  }
+
+  .playBtn:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  .playBtn:disabled {
+    opacity: 0.4;
+  }
+
+  .playBtn.playing {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
+  }
+
+  .seekBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--text2);
+    transition: all 0.15s;
+    /* Override global 44px min */
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .seekBtn:active:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--cyan);
+  }
+
+  .seekBtn:disabled {
+    opacity: 0.3;
+  }
+
+  /* ── Speed Group (right) ── */
+  .speedGroup {
+    position: relative;
+    min-width: 48px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .speedBtn {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--purple);
+    padding: 4px 10px;
+    border-radius: var(--radius-pill, 20px);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(168, 85, 247, 0.08);
+    transition: all 0.15s;
+    min-height: 32px;
+    min-width: 48px;
+  }
+
+  .speedBtn:active {
+    background: rgba(168, 85, 247, 0.15);
+  }
+
+  /* ── Speed Popover ── */
+  .speedPopover {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 0;
+    width: 220px;
+    background: rgba(15, 15, 28, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius, 14px);
+    padding: 12px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+    animation: popIn 0.15s ease;
+    z-index: 200;
+  }
+
+  @keyframes popIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .speedGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .speedPresetBtn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 0;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--text2);
+    text-align: center;
+    transition: all 0.12s;
+    min-height: 34px;
+    min-width: unset;
+  }
+
+  .speedPresetBtn:active {
+    background: rgba(168, 85, 247, 0.12);
+    border-color: var(--purple);
+  }
+
+  .speedPresetActive {
+    border-color: var(--purple);
+    color: var(--purple);
+    background: rgba(168, 85, 247, 0.12);
+    font-weight: 700;
+  }
+
+  .speedFine {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .speedStepBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .speedStepBtn:active {
+    border-color: var(--purple);
+    color: var(--purple);
+    background: rgba(168, 85, 247, 0.1);
+  }
+
+  .speedValue {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 54px;
+    text-align: center;
+  }
+}
