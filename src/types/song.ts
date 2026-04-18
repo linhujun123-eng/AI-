@@ -5,6 +5,13 @@ export interface ChordEvent {
   chord: string;
 }
 
+export interface LyricLine {
+  /** Start timestamp in seconds */
+  time: number;
+  /** Lyric text (empty string = interlude/intro) */
+  text: string;
+}
+
 export interface SectionMarker {
   /** Timestamp in seconds */
   time: number;
@@ -44,4 +51,10 @@ export interface Song {
   source: 'preset' | 'user';
   /** Upload timestamp (user songs only) */
   createdAt?: number;
+  /** Stem separation status (user songs): idle | processing | done | error */
+  stemStatus?: string;
+  /** Whether lyrics are available */
+  hasLyrics?: boolean;
+  /** Lyrics matching status (user songs): idle | processing | done | error */
+  lyricsStatus?: string;
 }

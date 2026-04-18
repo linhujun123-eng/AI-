@@ -15,6 +15,7 @@ import {
   triggerRecognition,
   fetchSongChordStatus,
   checkApiHealth,
+  fetchSong,
   type ChordStatus,
 } from '../services/api';
 
@@ -96,6 +97,48 @@ function pollChordStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Poll helper: check stem separation status until done or error
+// ---------------------------------------------------------------------------
+
+function pollStemStatus(
+  songId: string,
+  set: (fn: (state: SongState) => Partial<SongState>) => void,
+  _get: () => SongState,
+) {
+  const INTERVAL = 5000; // 5s (stem separation takes 3-5min, no need to poll fast)
+  const MAX_ATTEMPTS = 120; // 10min max
+  let attempts = 0;
+
+  const tick = async () => {
+    attempts++;
+    try {
+      const song = await fetchSong(songId);
+      const stemStatus = song.stemStatus ?? 'idle';
+
+      // Update the song in the list with new stemStatus
+      set((state) => ({
+        songs: state.songs.map((s) =>
+          s.id === songId
+            ? { ...s, stemStatus, audio: { ...s.audio, hasStem: stemStatus === 'done' } }
+            : s
+        ),
+      }));
+
+      if (stemStatus === 'done' || stemStatus === 'error') {
+        return; // stop polling
+      }
+      if (attempts < MAX_ATTEMPTS) {
+        setTimeout(tick, INTERVAL);
+      }
+    } catch {
+      // Network error — stop polling
+    }
+  };
+
+  setTimeout(tick, INTERVAL);
+}
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -146,6 +189,10 @@ export const useSongStore = create<SongState>((set, get) => ({
             // Ignore — keep idle
           }
         }
+        // Poll stem status if currently processing
+        if (song.stemStatus === 'processing') {
+          pollStemStatus(song.id, set, get);
+        }
       }
     } catch (err) {
       console.error('[song-store] Failed to load user songs:', err);
@@ -159,6 +206,7 @@ export const useSongStore = create<SongState>((set, get) => ({
 
   addUserSong: async (songMeta, audioFile, filename) => {
     // Upload to backend — backend generates id, stores audio + metadata
+    // Backend auto-triggers chord recognition + stem separation
     const song = await uploadSong(audioFile, {
       title: songMeta.title,
       artist: songMeta.artist,
@@ -173,8 +221,14 @@ export const useSongStore = create<SongState>((set, get) => ({
     // Refresh list
     await get().loadUserSongs();
 
-    // Trigger chord recognition (fire & forget)
-    get().triggerChordRecognition(song.id);
+    // Start polling for chord recognition status
+    set((state) => ({
+      chordStatus: { ...state.chordStatus, [song.id]: 'processing' },
+    }));
+    pollChordStatus(song.id, set, get);
+
+    // Start polling for stem separation status
+    pollStemStatus(song.id, set, get);
 
     return song;
   },

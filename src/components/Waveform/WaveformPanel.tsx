@@ -1,14 +1,24 @@
 import { useEffect, useRef, useCallback } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.js';
+import { SoundTouchNode } from '@soundtouchjs/audio-worklet';
 import type { ChordEvent } from '../../types/song';
 import { usePlayerStore } from '../../stores/player-store';
 import { useABLoopStore } from '../../stores/ab-loop-store';
+import { usePitchStore } from '../../stores/pitch-store';
+import { getAudioContext, resumeAudioContext } from '../../services/audio-context';
+import { transposeChord } from '../../utils/transpose';
 import styles from './WaveformPanel.module.css';
 
 /** Throttle interval for store updates (ms). 
  *  60ms ≈ 16fps for React renders; RAF still runs at 60fps for scroll. */
 const STORE_THROTTLE_MS = 60;
+
+/** Track whether SoundTouchNode processor has been registered globally */
+let stProcessorRegistered = false;
+
+/** Promise that resolves once the processor module is registered (shared across instances) */
+let stRegisterPromise: Promise<void> | null = null;
 
 /** Chord → Neon color mapping for markers (covers E-major key + common chords) */
 const CHORD_COLORS: Record<string, string> = {
@@ -77,7 +87,7 @@ function createChordLabel(chord: string, color: string, _index: number): HTMLEle
 interface WaveformPanelProps {
   audioUrl: string;
   chords?: ChordEvent[];
-  /** Mute WaveSurfer audio output (when stem engine takes over) */
+  /** Mute mix audio output (when stem engine takes over) */
   muteAudio?: boolean;
 }
 
@@ -90,8 +100,15 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
   const rafRef = useRef<number>(0);
   const lastStoreUpdateRef = useRef<number>(0);
 
+  // Web Audio pitch route refs
+  const stNodeRef = useRef<SoundTouchNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const pitchRouteReadyRef = useRef(false);
+
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const speed = usePlayerStore((s) => s.speed);
+  const pitchSemitones = usePitchStore((s) => s.pitchSemitones);
 
   const { a, b, isActive, incrementLoop } = useABLoopStore();
 
@@ -117,9 +134,8 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
       barRadius: 2,
       height: waveHeight,
       normalize: true,
-      // MediaElement backend (default): enables browser-native
-      // preservesPitchForPlaybackRate for tempo change without pitch shift.
-      // WebAudio backend does NOT support preservePitch.
+      // MediaElement backend (default): the <audio> element drives playback.
+      // We route its audio through SoundTouchNode (AudioWorklet) for pitch shifting.
       minPxPerSec: 50,
       autoScroll: true,
       autoCenter: true,
@@ -131,11 +147,20 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
     ws.on('ready', () => {
       usePlayerStore.getState().setDuration(ws.getDuration());
       usePlayerStore.getState().setIsLoaded(true);
+
+      // ── Set up Web Audio pitch route ──
+      // Route: <audio> → MediaElementSource → SoundTouchNode → GainNode → destination
+      // This intercepts the audio to enable real-time pitch shifting via AudioWorklet.
+      // Once createMediaElementSource() is called, the <audio> element no longer outputs
+      // directly to speakers; all audio flows through the Web Audio graph.
+      // However, <audio>.volume and .muted still control the signal level entering
+      // MediaElementSource, so WaveSurfer.setVolume() still works for the stem-mute case.
+      setupPitchRoute(ws).catch((err) => {
+        console.warn('[WaveformPanel] pitch route setup failed, falling back to native audio:', err);
+      });
     });
 
     // High-frequency time sync via requestAnimationFrame
-    // Store updates are throttled to ~60ms to reduce React re-renders
-    // but WaveSurfer's own autoScroll runs at native RAF speed.
     const rafLoop = () => {
       try {
         const t = ws.getCurrentTime();
@@ -153,14 +178,12 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
 
     ws.on('play', () => {
       usePlayerStore.getState().setIsPlaying(true);
-      // Start RAF loop when playing
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(rafLoop);
     });
 
     ws.on('pause', () => {
       usePlayerStore.getState().setIsPlaying(false);
-      // Final sync on pause
       usePlayerStore.getState().setCurrentTime(ws.getCurrentTime());
       cancelAnimationFrame(rafRef.current);
     });
@@ -170,7 +193,6 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
       cancelAnimationFrame(rafRef.current);
     });
 
-    // Also sync on seek (click waveform)
     ws.on('seeking', (t: number) => {
       usePlayerStore.getState().setCurrentTime(t);
     });
@@ -179,14 +201,96 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
 
     return () => {
       cancelAnimationFrame(rafRef.current);
-      ws.destroy();
+      // Tear down Web Audio pitch route
+      teardownPitchRoute();
+      try { ws.destroy(); } catch { /* AbortError in StrictMode double-invoke — harmless */ }
       wsRef.current = null;
       regionsRef.current = null;
       abRegionRef.current = null;
     };
-    // audioUrl is the only true dep; store setters are stable
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioUrl]);
+
+  // ── Web Audio pitch route setup / teardown ──
+
+  async function setupPitchRoute(ws: WaveSurfer) {
+    const ctx = getAudioContext();
+    const mediaEl = ws.getMediaElement();
+
+    // Ensure AudioContext is running — addModule may silently fail on suspended ctx
+    if (ctx.state === 'suspended') {
+      console.log('[WaveformPanel] resuming AudioContext before pitch route setup...');
+      await ctx.resume().catch(() => {});
+    }
+
+    // Register AudioWorklet processor (once globally, shared promise avoids duplicate addModule)
+    if (!stProcessorRegistered) {
+      if (!stRegisterPromise) {
+        console.log('[WaveformPanel] registering SoundTouchNode processor...');
+        stRegisterPromise = SoundTouchNode.register(ctx, '/soundtouch-processor.js')
+          .then(() => {
+            stProcessorRegistered = true;
+            console.log('[WaveformPanel] SoundTouchNode processor registered');
+          });
+      }
+      await stRegisterPromise;
+    }
+
+    // Guard: component may have been unmounted while awaiting registration
+    if (!wsRef.current) {
+      console.log('[WaveformPanel] component unmounted during pitch route setup, aborting');
+      return;
+    }
+
+    // Create MediaElementSource from WaveSurfer's <audio>
+    // NOTE: This can only be called once per <audio> element.
+    const mediaSource = ctx.createMediaElementSource(mediaEl);
+    mediaSourceRef.current = mediaSource;
+
+    // Disable browser's native pitch preservation — SoundTouchNode handles it
+    mediaEl.preservesPitch = false;
+
+    // Create SoundTouchNode (AudioWorklet-based pitch shifter)
+    const stNode = new SoundTouchNode(ctx);
+    stNodeRef.current = stNode;
+
+    // Create output gain for muting (when stems take over)
+    const gain = ctx.createGain();
+    gain.gain.value = 1.0;
+    gainNodeRef.current = gain;
+
+    // Wire: mediaSource → stNode → gain → destination
+    mediaSource.connect(stNode);
+    stNode.connect(gain);
+    gain.connect(ctx.destination);
+
+    // Sync ALL current state — pitch, speed, and mute may have changed during async setup
+    const currentPitch = usePitchStore.getState().pitchSemitones;
+    const currentSpeed = usePlayerStore.getState().speed;
+    stNode.pitchSemitones.value = currentPitch;
+    stNode.playbackRate.value = currentSpeed;
+
+    // Sync mute state via GainNode (user may have toggled stems during setup).
+    // Also restore <audio>.volume to 1 — the fallback mute path may have set it to 0
+    // before createMediaElementSource intercepted the output.
+    gain.gain.value = muteAudio ? 0 : 1;
+    mediaEl.volume = 1;
+
+    console.log('[WaveformPanel] pitch route established:',
+      'pitch:', currentPitch, 'speed:', currentSpeed,
+      'muted:', muteAudio, 'ctx:', ctx.state);
+    pitchRouteReadyRef.current = true;
+  }
+
+  function teardownPitchRoute() {
+    try { mediaSourceRef.current?.disconnect(); } catch { /* */ }
+    try { stNodeRef.current?.disconnect(); } catch { /* */ }
+    try { gainNodeRef.current?.disconnect(); } catch { /* */ }
+    mediaSourceRef.current = null;
+    stNodeRef.current = null;
+    gainNodeRef.current = null;
+    pitchRouteReadyRef.current = false;
+  }
 
   // Sync play/pause from store → wavesurfer
   useEffect(() => {
@@ -199,18 +303,51 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
     }
   }, [isPlaying]);
 
-  // Sync speed
+  // Sync speed → WaveSurfer playbackRate + SoundTouchNode
   useEffect(() => {
     const ws = wsRef.current;
     if (!ws) return;
-    ws.setPlaybackRate(speed, true);
+    // preservesPitch=false since SoundTouchNode handles pitch correction
+    ws.setPlaybackRate(speed, false);
+
+    // Tell SoundTouchNode the source playback rate so it auto-compensates pitch
+    if (stNodeRef.current) {
+      stNodeRef.current.playbackRate.value = speed;
+      console.log('[WaveformPanel] speed synced to SoundTouchNode:', speed);
+    } else {
+      console.log('[WaveformPanel] speed set on <audio>:', speed, '(SoundTouchNode not yet ready, will sync on setup)');
+    }
   }, [speed]);
 
-  // Mute WaveSurfer audio when stem engine is active
+  // Sync pitch semitones → SoundTouchNode
   useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    ws.setVolume(muteAudio ? 0 : 1);
+    if (stNodeRef.current) {
+      stNodeRef.current.pitchSemitones.value = pitchSemitones;
+      console.log('[WaveformPanel] pitchSemitones synced:', pitchSemitones);
+    } else {
+      console.log('[WaveformPanel] pitchSemitones queued:', pitchSemitones, '(SoundTouchNode not yet ready, will sync on setup)');
+    }
+  }, [pitchSemitones]);
+
+  // Mute mix audio when stem engine takes over
+  // When pitch route is active: use GainNode (keeps <audio>.volume = 1)
+  // When pitch route not yet ready: fall back to WaveSurfer volume (which sets <audio>.volume)
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = muteAudio ? 0 : 1;
+      // Ensure <audio>.volume stays at 1 — GainNode handles muting
+      const ws = wsRef.current;
+      if (ws) {
+        const mediaEl = ws.getMediaElement();
+        if (mediaEl && mediaEl.volume !== 1) mediaEl.volume = 1;
+      }
+      console.log('[WaveformPanel] gain mute:', muteAudio);
+    } else {
+      // Fallback: pitch route not yet set up, use WaveSurfer volume
+      const ws = wsRef.current;
+      if (ws) ws.setVolume(muteAudio ? 0 : 1);
+      console.log('[WaveformPanel] fallback volume mute:', muteAudio);
+    }
   }, [muteAudio]);
 
   // AB loop region rendering
@@ -243,7 +380,6 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
     const ws = wsRef.current;
     if (!regions || !ws || chords.length === 0) return;
 
-    // Wait until waveform is ready (has duration)
     const renderMarkers = () => {
       const duration = ws.getDuration();
       if (!duration) return;
@@ -252,34 +388,30 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
       chordMarkersRef.current.forEach((m) => m.remove());
       chordMarkersRef.current = [];
 
-      // Filter: skip markers outside valid range; deduplicate consecutive same chords
-      // NOTE: v3 chords.json already has min-duration filtering, so we don't re-filter here
       const filtered: ChordEvent[] = [];
       let lastChord = '';
       for (const chord of chords) {
         if (chord.time <= 0 || chord.time >= duration) continue;
-        // Skip if same chord as previous
         if (chord.chord === lastChord) continue;
         filtered.push(chord);
         lastChord = chord.chord;
       }
 
       filtered.forEach((chord, i) => {
+        const displayChord = transposeChord(chord.chord, pitchSemitones);
 
-        // Thin region as a marker line
         const marker = regions.addRegion({
           start: chord.time,
-          end: chord.time + 0.05, // near-zero width = vertical line
+          end: chord.time + 0.05,
           color: getChordColor(chord.chord).replace(')', ', 0.35)').replace('rgb', 'rgba'),
           drag: false,
           resize: false,
-          content: createChordLabel(chord.chord, getChordColor(chord.chord), i),
+          content: createChordLabel(displayChord, getChordColor(chord.chord), i),
         });
         chordMarkersRef.current.push(marker);
       });
     };
 
-    // If already loaded, render now; otherwise wait for ready
     if (ws.getDuration()) {
       renderMarkers();
     }
@@ -289,7 +421,7 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
       chordMarkersRef.current.forEach((m) => m.remove());
       chordMarkersRef.current = [];
     };
-  }, [chords]);
+  }, [chords, pitchSemitones]);
 
   // AB loop logic: jump back to A when hitting B
   useEffect(() => {
@@ -315,13 +447,12 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
     wsRef.current?.playPause();
   }, []);
 
-  // Attach to window for keyboard shortcut access (simple approach)
+  // Attach to window for keyboard shortcut access
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__waveformSeek = seek;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__waveformToggle = togglePlay;
-    // Expose getCurrentTime for high-frequency readers (e.g. ChordDisplay)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__waveformGetCurrentTime = () => wsRef.current?.getCurrentTime() ?? 0;
     return () => {
@@ -336,7 +467,7 @@ export function WaveformPanel({ audioUrl, chords = [], muteAudio = false }: Wave
 
   return (
     <div className={styles.panel}>
-      <div ref={containerRef} className={styles.waveform} />
+      <div ref={containerRef} className={styles.waveform} onClick={resumeAudioContext} />
     </div>
   );
 }

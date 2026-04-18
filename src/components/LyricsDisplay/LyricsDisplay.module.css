@@ -1,0 +1,106 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  min-height: 90px;
+}
+
+/* Shared line styles */
+.line {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  cursor: pointer;
+  transition: color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  line-height: 1.4;
+}
+
+/* Previous line */
+.prev {
+  font-size: 14px;
+  color: var(--text2);
+  opacity: 0.4;
+}
+
+.prev:hover {
+  opacity: 0.7;
+}
+
+/* Current line — Neon highlight */
+.current {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cyan);
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.4), 0 0 40px rgba(0, 229, 255, 0.15);
+  transform: scale(1);
+  padding: 4px 0;
+}
+
+/* Next line */
+.next {
+  font-size: 14px;
+  color: var(--text2);
+  opacity: 0.55;
+}
+
+.next:hover {
+  opacity: 0.8;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .container {
+    gap: 5px;
+    padding: 10px 14px;
+    min-height: 78px;
+  }
+
+  .prev {
+    font-size: 13px;
+  }
+
+  .current {
+    font-size: 18px;
+    padding: 3px 0;
+  }
+
+  .next {
+    font-size: 13px;
+  }
+}
+
+/* Phone */
+@media (max-width: 480px) {
+  .container {
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    min-height: 68px;
+  }
+
+  .prev {
+    font-size: 12px;
+  }
+
+  .current {
+    font-size: 16px;
+    padding: 2px 0;
+    text-shadow: 0 0 12px rgba(0, 229, 255, 0.35), 0 0 28px rgba(0, 229, 255, 0.12);
+  }
+
+  .next {
+    font-size: 12px;
+  }
+}

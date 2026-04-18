@@ -7,6 +7,7 @@ import { useABLoopStore } from '../../stores/ab-loop-store';
 import { useStemStore } from '../../stores/stem-store';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useStemEngine } from '../../hooks/useStemEngine';
+import { usePitchStore } from '../../stores/pitch-store';
 import { TopBar } from '../../components/TopBar/TopBar';
 import { WaveformPanel } from '../../components/Waveform/WaveformPanel';
 import { ChordDisplay } from '../../components/ChordDisplay/ChordDisplay';
@@ -65,20 +66,32 @@ export function PracticePage() {
     clearAB();
     useStemStore.getState().setIsActive(false);
     useStemStore.getState().setIsLoaded(false);
+    usePitchStore.getState().resetPitch();
     return () => {
       reset();
       clearAB();
       useStemStore.getState().setIsActive(false);
       useStemStore.getState().setIsLoaded(false);
+      usePitchStore.getState().resetPitch();
     };
   }, [songId, reset, clearAB]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Stem engine
-  const { loadStems } = useStemEngine(songId ?? '');
+  // Stem engine — pass song source for correct URL routing
+  const { loadStems } = useStemEngine(songId ?? '', song?.source ?? 'preset');
   const stemIsActive = useStemStore((s) => s.isActive);
+  const stemIsLoaded = useStemStore((s) => s.isLoaded);
+
+  // Pitch shifting is now handled inside WaveformPanel via SoundTouchNode (AudioWorklet).
+  // No separate PitchEngine needed — WaveformPanel routes:
+  //   <audio> → MediaElementSource → SoundTouchNode → GainNode → destination
+  // When stems are active, StemEngine handles pitch via AudioBufferSourceNode.detune.
+
+  // Mute WaveSurfer mix audio when stem engine takes over
+  // Only mute after stems have loaded — keep mix audible during stem loading
+  const muteWaveSurfer = stemIsActive && stemIsLoaded;
 
   // When user activates stems, load the files
   const handleStemActivate = useCallback(() => {
@@ -153,18 +166,18 @@ export function PracticePage() {
         )}
       </div>
 
-      {/* Waveform — mute WaveSurfer audio when stems are active */}
+      {/* Waveform — mute WaveSurfer audio when stems or pitch engine are active */}
       <div className={styles.section}>
         <WaveformPanel
           audioUrl={audioUrl}
           chords={chords}
-          muteAudio={stemIsActive}
+          muteAudio={muteWaveSurfer}
         />
       </div>
 
       {/* Track Mixer */}
       <div className={styles.section}>
-        <TrackMixer onActivate={handleStemActivate} />
+        <TrackMixer onActivate={handleStemActivate} song={song} />
       </div>
 
       {/* Playback Controls */}

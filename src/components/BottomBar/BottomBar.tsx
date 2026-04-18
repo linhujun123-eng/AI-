@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePlayerStore } from '../../stores/player-store';
 import { useABLoopStore } from '../../stores/ab-loop-store';
+import { usePitchStore } from '../../stores/pitch-store';
+import { resumeAudioContext } from '../../services/audio-context';
 import { formatTime } from '../../utils/format-time';
 import styles from './BottomBar.module.css';
 
@@ -10,6 +12,7 @@ export function BottomBar() {
   const { isPlaying, currentTime, duration, speed, isLoaded, setSpeed } =
     usePlayerStore();
   const { a, b, isActive, loopCount, setA, setB, clear } = useABLoopStore();
+  const { pitchSemitones, stepPitch, resetPitch } = usePitchStore();
 
   const [showSpeed, setShowSpeed] = useState(false);
   const speedRef = useRef<HTMLDivElement>(null);
@@ -31,6 +34,7 @@ export function BottomBar() {
   }, [showSpeed]);
 
   const handleTogglePlay = () => {
+    resumeAudioContext();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__waveformToggle?.();
   };
@@ -123,10 +127,15 @@ export function BottomBar() {
         {/* Speed */}
         <div className={styles.speedGroup} ref={speedRef}>
           <button
-            className={styles.speedBtn}
+            className={`${styles.speedBtn} ${pitchSemitones !== 0 ? styles.speedBtnPitch : ''}`}
             onClick={() => setShowSpeed(!showSpeed)}
           >
             {speed === 1 ? '1×' : `${speed.toFixed(2).replace(/0$/, '')}×`}
+            {pitchSemitones !== 0 && (
+              <span className={styles.pitchBadge}>
+                {pitchSemitones > 0 ? '+' : ''}{pitchSemitones}
+              </span>
+            )}
           </button>
 
           {/* Speed popover */}
@@ -160,6 +169,35 @@ export function BottomBar() {
                 >
                   +
                 </button>
+              </div>
+
+              {/* Pitch control */}
+              <div className={styles.pitchSection}>
+                <span className={styles.pitchSectionLabel}>变调</span>
+                <div className={styles.pitchControls}>
+                  <button
+                    className={styles.pitchStepBtn}
+                    onClick={() => { resumeAudioContext(); stepPitch(-1); }}
+                    disabled={pitchSemitones <= -12}
+                  >
+                    ♭
+                  </button>
+                  <button
+                    className={`${styles.pitchDisplay} ${pitchSemitones !== 0 ? styles.pitchDisplayActive : ''}`}
+                    onClick={() => { resumeAudioContext(); resetPitch(); }}
+                  >
+                    {pitchSemitones === 0
+                      ? '原调'
+                      : `${pitchSemitones > 0 ? '+' : ''}${pitchSemitones}`}
+                  </button>
+                  <button
+                    className={styles.pitchStepBtn}
+                    onClick={() => { resumeAudioContext(); stepPitch(1); }}
+                    disabled={pitchSemitones >= 12}
+                  >
+                    ♯
+                  </button>
+                </div>
               </div>
             </div>
           )}

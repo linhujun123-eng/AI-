@@ -1,5 +1,7 @@
 import { usePlayerStore } from '../../stores/player-store';
 import { useABLoopStore } from '../../stores/ab-loop-store';
+import { usePitchStore } from '../../stores/pitch-store';
+import { resumeAudioContext } from '../../services/audio-context';
 import { formatTime } from '../../utils/format-time';
 import styles from './PlaybackControls.module.css';
 
@@ -9,8 +11,20 @@ export function PlaybackControls() {
   const { isPlaying, currentTime, duration, speed, isLoaded, setSpeed } =
     usePlayerStore();
   const { a, b, isActive, loopCount, setA, setB, clear } = useABLoopStore();
+  const { pitchSemitones, stepPitch, resetPitch } = usePitchStore();
+
+  /** Resume AudioContext in the click call-stack, THEN update pitch store */
+  const handlePitchStep = (delta: number) => {
+    resumeAudioContext();
+    stepPitch(delta);
+  };
+  const handlePitchReset = () => {
+    resumeAudioContext();
+    resetPitch();
+  };
 
   const handleTogglePlay = () => {
+    resumeAudioContext();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__waveformToggle?.();
   };
@@ -142,6 +156,36 @@ export function PlaybackControls() {
             +
           </button>
         </div>
+      </div>
+
+      {/* Pitch row */}
+      <div className={styles.pitchRow}>
+        <span className={styles.pitchLabel}>变调</span>
+        <button
+          className={styles.pitchStep}
+          onClick={() => handlePitchStep(-1)}
+          disabled={pitchSemitones <= -12}
+          title="降 1 半音 (↓)"
+        >
+          ♭
+        </button>
+        <button
+          className={`${styles.pitchValue} ${pitchSemitones !== 0 ? styles.pitchActive : ''}`}
+          onClick={handlePitchReset}
+          title="点击重置为原调"
+        >
+          {pitchSemitones === 0
+            ? '原调'
+            : `${pitchSemitones > 0 ? '+' : ''}${pitchSemitones}`}
+        </button>
+        <button
+          className={styles.pitchStep}
+          onClick={() => handlePitchStep(1)}
+          disabled={pitchSemitones >= 12}
+          title="升 1 半音 (↑)"
+        >
+          ♯
+        </button>
       </div>
     </div>
   );

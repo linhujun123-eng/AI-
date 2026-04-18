@@ -1,75 +1,152 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { SoundTouchNode } from '@soundtouchjs/audio-worklet';
 import { STEM_TRACKS, STEM_KEYS } from '../types/stems';
 import type { StemKey } from '../types/stems';
 import { useStemStore } from '../stores/stem-store';
 import { usePlayerStore } from '../stores/player-store';
-
-interface StemNode {
-  buffer: AudioBuffer;
-  source: AudioBufferSourceNode | null;
-  gain: GainNode;
-}
+import { usePitchStore } from '../stores/pitch-store';
+import { fetchStemAudio } from '../services/api';
+import { getAudioContext } from '../services/audio-context';
 
 /**
- * Hook that manages Web Audio API multi-track stem playback.
- * When stems are active, the mix audio from WaveSurfer is muted
- * and playback is driven by decoded stem AudioBuffers + GainNodes.
+ * A stem playback node — holds the decoded buffer, a GainNode for volume,
+ * and an AudioBufferSourceNode for playback.
+ */
+interface StemNode {
+  buffer: AudioBuffer;
+  gain: GainNode;
+  source: AudioBufferSourceNode | null;
+}
+
+/** Track whether SoundTouchNode processor has been registered globally */
+let stProcessorRegistered = false;
+let stRegisterPromise: Promise<void> | null = null;
+
+/**
+ * Multi-track stem playback engine using native AudioBufferSourceNode.
+ *
+ * Audio graph per track:
+ *   AudioBufferSourceNode → GainNode (per-track volume) ─┐
+ *                                                         ├→ SoundTouchNode → destination
+ *   (all tracks merge into one shared SoundTouchNode)     ┘
+ *
+ * Pitch shifting: SoundTouchNode.pitchSemitones (real time-stretching, independent of speed)
+ * Speed: AudioBufferSourceNode.playbackRate (native resampling, SoundTouchNode compensates pitch)
  *
  * WaveSurfer remains the time-source (seek, play/pause sync).
  */
-export function useStemEngine(songId: string) {
-  const ctxRef = useRef<AudioContext | null>(null);
+export function useStemEngine(songId: string, songSource: 'preset' | 'user' = 'preset') {
   const stemsRef = useRef<Map<StemKey, StemNode>>(new Map());
-  const startedAtRef = useRef<number>(0);
-  const offsetRef = useRef<number>(0);
   const isPlayingRef = useRef(false);
+  const lastCurrentTimeRef = useRef(0);
+
+  // Shared SoundTouchNode for pitch shifting all stems together
+  const stNodeRef = useRef<SoundTouchNode | null>(null);
+  const stReadyRef = useRef(false);
 
   const isActive = useStemStore((s) => s.isActive);
   const isLoaded = useStemStore((s) => s.isLoaded);
 
-  // Create AudioContext on first need
-  const getCtx = useCallback(() => {
-    if (!ctxRef.current) {
-      ctxRef.current = new AudioContext();
+  // ── helpers ──────────────────────────────────────────────────────────
+
+  const destroyNode = useCallback((node: StemNode) => {
+    if (node.source) {
+      try { node.source.stop(); } catch { /* already stopped */ }
+      try { node.source.disconnect(); } catch { /* */ }
+      node.source = null;
     }
-    return ctxRef.current;
   }, []);
 
-  // Load all stem files
+  // ── setup / teardown shared SoundTouchNode ──────────────────────────
+
+  const setupSoundTouch = useCallback(async () => {
+    const ctx = getAudioContext();
+
+    if (ctx.state === 'suspended') {
+      console.log('[StemEngine] resuming AudioContext before SoundTouchNode setup...');
+      await ctx.resume().catch(() => {});
+    }
+
+    // Register AudioWorklet processor (once globally)
+    if (!stProcessorRegistered) {
+      if (!stRegisterPromise) {
+        console.log('[StemEngine] registering SoundTouchNode processor...');
+        stRegisterPromise = SoundTouchNode.register(ctx, '/soundtouch-processor.js')
+          .then(() => {
+            stProcessorRegistered = true;
+            console.log('[StemEngine] SoundTouchNode processor registered');
+          });
+      }
+      await stRegisterPromise;
+    }
+
+    // Create shared SoundTouchNode
+    const stNode = new SoundTouchNode(ctx);
+    stNode.connect(ctx.destination);
+
+    // Sync current pitch & speed
+    const currentPitch = usePitchStore.getState().pitchSemitones;
+    const currentSpeed = usePlayerStore.getState().speed;
+    stNode.pitchSemitones.value = currentPitch;
+    stNode.playbackRate.value = currentSpeed;
+
+    stNodeRef.current = stNode;
+    stReadyRef.current = true;
+
+    console.log('[StemEngine] SoundTouchNode ready — pitch:', currentPitch, 'speed:', currentSpeed);
+
+    return stNode;
+  }, []);
+
+  const teardownSoundTouch = useCallback(() => {
+    if (stNodeRef.current) {
+      try { stNodeRef.current.disconnect(); } catch { /* */ }
+      stNodeRef.current = null;
+    }
+    stReadyRef.current = false;
+    console.log('[StemEngine] SoundTouchNode torn down');
+  }, []);
+
+  // ── load stems ──────────────────────────────────────────────────────
+
   const loadStems = useCallback(async () => {
-    const ctx = getCtx();
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      await ctx.resume().catch(() => {});
+    }
+
     const store = useStemStore.getState();
     store.setLoadingProgress(0);
     store.setIsLoaded(false);
 
+    // Setup shared SoundTouchNode first
+    let stNode = stNodeRef.current;
+    if (!stNode || !stReadyRef.current) {
+      stNode = await setupSoundTouch();
+    }
+
     const total = STEM_TRACKS.length;
     let loaded = 0;
-
     const entries: [StemKey, StemNode][] = [];
 
     for (const track of STEM_TRACKS) {
       try {
-        const url = `/audio/${songId}/${track.filename}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          // If stem file doesn't exist, create a silent buffer
-          const silentBuffer = ctx.createBuffer(2, ctx.sampleRate * 1, ctx.sampleRate);
-          const gain = ctx.createGain();
-          gain.connect(ctx.destination);
-          entries.push([track.key, { buffer: silentBuffer, source: null, gain }]);
-        } else {
-          const arrayBuffer = await response.arrayBuffer();
-          const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-          const gain = ctx.createGain();
-          gain.connect(ctx.destination);
-          entries.push([track.key, { buffer: audioBuffer, source: null, gain }]);
-        }
-      } catch {
-        // Fallback: silent buffer
-        const silentBuffer = ctx.createBuffer(2, ctx.sampleRate * 1, ctx.sampleRate);
+        const response = await fetchStemAudio(songId, track.key, songSource);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
         const gain = ctx.createGain();
-        gain.connect(ctx.destination);
-        entries.push([track.key, { buffer: silentBuffer, source: null, gain }]);
+        // Route: GainNode → shared SoundTouchNode (→ destination)
+        gain.connect(stNode);
+        entries.push([track.key, { buffer: audioBuffer, gain, source: null }]);
+        console.log('[StemEngine] loaded stem:', track.key, 'duration:', audioBuffer.duration.toFixed(1) + 's');
+      } catch (err) {
+        // Failed to load → silent 1-second buffer
+        console.warn('[StemEngine] failed to load stem:', track.key, err);
+        const silentBuffer = ctx.createBuffer(2, ctx.sampleRate, ctx.sampleRate);
+        const gain = ctx.createGain();
+        gain.connect(stNode);
+        entries.push([track.key, { buffer: silentBuffer, gain, source: null }]);
       }
       loaded++;
       useStemStore.getState().setLoadingProgress(loaded / total);
@@ -78,56 +155,57 @@ export function useStemEngine(songId: string) {
     stemsRef.current = new Map(entries);
     useStemStore.getState().setIsLoaded(true);
     useStemStore.getState().setLoadingProgress(1);
-  }, [songId, getCtx]);
+    console.log('[StemEngine] all stems loaded, count:', entries.length);
+  }, [songId, songSource, setupSoundTouch]);
 
-  // Start all stem sources from a given offset
-  const startPlayback = useCallback(
-    (offset: number) => {
-      const ctx = ctxRef.current;
-      if (!ctx) return;
+  // ── start / stop ────────────────────────────────────────────────────
 
-      // Stop existing sources
-      stemsRef.current.forEach((node) => {
-        if (node.source) {
-          try { node.source.stop(); } catch { /* ignore */ }
-          node.source.disconnect();
-          node.source = null;
-        }
-      });
+  const startPlayback = useCallback((offset: number) => {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
-      stemsRef.current.forEach((node) => {
-        const source = ctx.createBufferSource();
-        source.buffer = node.buffer;
-        source.connect(node.gain);
-        source.start(0, offset);
-        node.source = source;
-      });
+    const speed = usePlayerStore.getState().speed;
 
-      offsetRef.current = offset;
-      startedAtRef.current = ctx.currentTime;
-      isPlayingRef.current = true;
-    },
-    []
-  );
+    // Tear down existing playback
+    stemsRef.current.forEach((node) => destroyNode(node));
 
-  // Stop all stem sources
-  const stopPlayback = useCallback(() => {
     stemsRef.current.forEach((node) => {
-      if (node.source) {
-        try { node.source.stop(); } catch { /* ignore */ }
-        node.source.disconnect();
-        node.source = null;
-      }
-    });
-    isPlayingRef.current = false;
-  }, []);
+      const duration = node.buffer.duration;
+      const clampedOffset = duration > 0 ? Math.min(Math.max(offset, 0), duration - 0.05) : 0;
 
-  // Sync play/pause/seek from player store
+      const src = ctx.createBufferSource();
+      src.buffer = node.buffer;
+      // No detune — SoundTouchNode handles pitch shifting properly
+      src.playbackRate.value = speed;
+      src.connect(node.gain);
+      src.start(0, clampedOffset);
+      node.source = src;
+    });
+
+    // Sync SoundTouchNode playbackRate so it knows the source speed
+    if (stNodeRef.current) {
+      stNodeRef.current.playbackRate.value = speed;
+    }
+
+    isPlayingRef.current = true;
+    lastCurrentTimeRef.current = offset;
+    console.log('[StemEngine] startPlayback offset:', offset.toFixed(1), 'speed:', speed);
+  }, [destroyNode]);
+
+  const stopPlayback = useCallback(() => {
+    stemsRef.current.forEach((node) => destroyNode(node));
+    isPlayingRef.current = false;
+  }, [destroyNode]);
+
+  // ── sync play/pause/seek ────────────────────────────────────────────
+
   useEffect(() => {
     if (!isActive || !isLoaded) return;
 
     const unsubscribe = usePlayerStore.subscribe((state, prevState) => {
-      // Play state changed
+      // Play/pause changed
       if (state.isPlaying !== prevState.isPlaying) {
         if (state.isPlaying) {
           startPlayback(state.currentTime);
@@ -136,21 +214,21 @@ export function useStemEngine(songId: string) {
         }
       }
 
-      // Seek: detect large time jumps (>0.5s difference from expected position)
-      if (state.isPlaying && isPlayingRef.current && ctxRef.current) {
-        const expected =
-          offsetRef.current + (ctxRef.current.currentTime - startedAtRef.current);
-        const drift = Math.abs(state.currentTime - expected);
-        if (drift > 0.5) {
-          // Re-sync: restart from new position
+      // Seek detection: large jump in currentTime → user dragged waveform
+      if (state.isPlaying && isPlayingRef.current) {
+        const delta = state.currentTime - lastCurrentTimeRef.current;
+        lastCurrentTimeRef.current = state.currentTime;
+        if (Math.abs(delta) > 0.5) {
           startPlayback(state.currentTime);
         }
       }
     });
 
-    // If already playing when stems become active, start
+    // If already playing when effect mounts, start immediately
+    const t = usePlayerStore.getState().currentTime;
+    lastCurrentTimeRef.current = t;
     if (usePlayerStore.getState().isPlaying) {
-      startPlayback(usePlayerStore.getState().currentTime);
+      startPlayback(t);
     }
 
     return () => {
@@ -159,32 +237,54 @@ export function useStemEngine(songId: string) {
     };
   }, [isActive, isLoaded, startPlayback, stopPlayback]);
 
-  // Sync playback speed
+  // ── sync pitch → SoundTouchNode.pitchSemitones ────────────────────
+
+  useEffect(() => {
+    if (!isActive || !isLoaded) {
+      console.log('[StemEngine] pitch sync skipped: isActive:', isActive, 'isLoaded:', isLoaded);
+      return;
+    }
+    console.log('[StemEngine] pitch sync ACTIVE — subscribing to pitchStore');
+
+    return usePitchStore.subscribe((state, prevState) => {
+      if (state.pitchSemitones !== prevState.pitchSemitones) {
+        if (stNodeRef.current) {
+          stNodeRef.current.pitchSemitones.value = state.pitchSemitones;
+          console.log('[StemEngine] pitchSemitones synced to SoundTouchNode:', state.pitchSemitones);
+        } else {
+          console.warn('[StemEngine] pitch changed but SoundTouchNode not ready');
+        }
+      }
+    });
+  }, [isActive, isLoaded]);
+
+  // ── sync speed → playbackRate on sources + SoundTouchNode ─────────
+
   useEffect(() => {
     if (!isActive || !isLoaded) return;
 
-    const unsubscribe = usePlayerStore.subscribe((state, prevState) => {
+    return usePlayerStore.subscribe((state, prevState) => {
       if (state.speed !== prevState.speed) {
+        const aliveSources = [...stemsRef.current.values()].filter(n => n.source !== null);
+        console.log('[StemEngine] speed changed to', state.speed,
+          'sources alive:', aliveSources.length);
+        // Update source playbackRate (raw speed, no compensation needed)
         stemsRef.current.forEach((node) => {
           if (node.source) {
             node.source.playbackRate.value = state.speed;
           }
         });
+        // Tell SoundTouchNode the source playback rate so it auto-compensates pitch
+        if (stNodeRef.current) {
+          stNodeRef.current.playbackRate.value = state.speed;
+          console.log('[StemEngine] speed synced to SoundTouchNode:', state.speed);
+        }
       }
     });
-
-    // Apply current speed
-    const speed = usePlayerStore.getState().speed;
-    stemsRef.current.forEach((node) => {
-      if (node.source) {
-        node.source.playbackRate.value = speed;
-      }
-    });
-
-    return unsubscribe;
   }, [isActive, isLoaded]);
 
-  // Sync volumes from stem store → GainNodes (real-time)
+  // ── sync volumes ────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!isActive || !isLoaded) return;
 
@@ -193,10 +293,9 @@ export function useStemEngine(songId: string) {
         const node = stemsRef.current.get(key);
         if (node) {
           const vol = state.getEffectiveVolume(key);
-          // Smooth ramp to avoid clicks
           node.gain.gain.linearRampToValueAtTime(
             vol,
-            (ctxRef.current?.currentTime ?? 0) + 0.05
+            getAudioContext().currentTime + 0.05
           );
         }
       });
@@ -214,16 +313,14 @@ export function useStemEngine(songId: string) {
     return unsubscribe;
   }, [isActive, isLoaded]);
 
-  // Cleanup on unmount
+  // ── cleanup ─────────────────────────────────────────────────────────
+
   useEffect(() => {
     return () => {
-      stopPlayback();
-      if (ctxRef.current) {
-        ctxRef.current.close();
-        ctxRef.current = null;
-      }
+      stemsRef.current.forEach((node) => destroyNode(node));
+      teardownSoundTouch();
     };
-  }, [stopPlayback]);
+  }, [destroyNode, teardownSoundTouch]);
 
   return { loadStems, isLoaded };
 }

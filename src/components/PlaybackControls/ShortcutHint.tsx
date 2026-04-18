@@ -4,6 +4,7 @@ import styles from './ShortcutHint.module.css';
 const SHORTCUTS = [
   { key: 'Space', action: '播放 / 暂停' },
   { key: '← →', action: '前进 / 后退 5 秒' },
+  { key: '↑ ↓', action: '升调 / 降调 1 半音' },
   { key: 'A', action: '设置 A 点' },
   { key: 'B', action: '设置 B 点' },
   { key: 'Esc', action: '清除 AB 循环' },

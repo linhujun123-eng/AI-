@@ -5,7 +5,7 @@
  * 开发环境通过 Vite proxy 转发 /api → localhost:8000
  */
 
-import type { Song } from '../types/song';
+import type { Song, LyricLine } from '../types/song';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,7 +25,10 @@ export interface ApiSong {
   source: string;
   createdAt: number;
   chordStatus: string;
+  stemStatus: string;
   hasChords: boolean;
+  hasLyrics: boolean;
+  lyricsStatus: string;
   audio: {
     mix: string;
     hasStem: boolean;
@@ -107,6 +110,9 @@ function toSong(api: ApiSong): Song {
     cover: api.cover ?? '🎵',
     source: api.source as 'preset' | 'user',
     createdAt: api.createdAt,
+    stemStatus: api.stemStatus,
+    hasLyrics: api.hasLyrics,
+    lyricsStatus: api.lyricsStatus,
     audio: {
       mix: api.audio.mix,
       hasStem: api.audio.hasStem,
@@ -216,6 +222,40 @@ export async function fetchSongChordStatus(songId: string): Promise<ChordStatus>
 }
 
 // ---------------------------------------------------------------------------
+// Lyrics
+// ---------------------------------------------------------------------------
+
+/** Fetch lyrics data for a song from the backend */
+export async function fetchLyrics(songId: string): Promise<LyricLine[] | null> {
+  try {
+    const data = await apiFetch<{ lyrics: LyricLine[] }>(`/songs/${songId}/lyrics`);
+    return data.lyrics && data.lyrics.length > 0 ? data.lyrics : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upload an LRC lyrics file for a song */
+export async function uploadLyrics(songId: string, lrcFile: File): Promise<void> {
+  const form = new FormData();
+  form.append('file', lrcFile);
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/songs/${songId}/lyrics`, {
+    method: 'POST',
+    body: form,
+    headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) {
+    let detail = `上传失败 (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body.detail) detail = body.detail;
+    } catch { /* ignore */ }
+    throw new Error(detail);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
 
@@ -240,6 +280,42 @@ export async function authLogin(username: string, password: string): Promise<Aut
 /** Get current user info from JWT */
 export async function authGetMe(): Promise<AuthUser> {
   return apiFetch<AuthUser>('/auth/me');
+}
+
+// ---------------------------------------------------------------------------
+// Stems
+// ---------------------------------------------------------------------------
+
+/** Trigger stem separation for an uploaded song (async, returns immediately) */
+export async function triggerStemSeparation(songId: string): Promise<'started' | 'already_processing'> {
+  const data = await apiFetch<{ status: string }>(`/songs/${songId}/separate`, {
+    method: 'POST',
+  });
+  return data.status as 'started' | 'already_processing';
+}
+
+/** Get the audio URL for a specific stem track.
+ *  For user songs: /api/songs/{id}/stems/{stem}
+ *  For preset songs: /audio/{songId}/{stem}.mp3 */
+export function getStemAudioUrl(songId: string, stemName: string, source: 'preset' | 'user'): string {
+  if (source === 'user') {
+    return `${API_BASE}/songs/${songId}/stems/${stemName}`;
+  }
+  return `/audio/${songId}/${stemName}.mp3`;
+}
+
+/** Fetch stem audio as ArrayBuffer with proper auth headers.
+ *  Returns the Response object so the caller can check .ok and read .arrayBuffer(). */
+export async function fetchStemAudio(songId: string, stemName: string, source: 'preset' | 'user'): Promise<Response> {
+  const url = getStemAudioUrl(songId, stemName, source);
+  const headers: HeadersInit = {};
+  if (source === 'user') {
+    const token = getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  return fetch(url, { headers });
 }
 
 // ---------------------------------------------------------------------------

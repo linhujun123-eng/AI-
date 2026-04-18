@@ -1,14 +1,18 @@
 import { useCallback } from 'react';
 import { STEM_TRACKS, VOLUME_MAX } from '../../types/stems';
 import type { StemKey } from '../../types/stems';
+import type { Song } from '../../types/song';
 import { useStemStore } from '../../stores/stem-store';
+import { triggerStemSeparation } from '../../services/api';
+import { resumeAudioContext } from '../../services/audio-context';
 import styles from './TrackMixer.module.css';
 
 interface TrackMixerProps {
   onActivate: () => void;
+  song?: Song;
 }
 
-export function TrackMixer({ onActivate }: TrackMixerProps) {
+export function TrackMixer({ onActivate, song }: TrackMixerProps) {
   const isActive = useStemStore((s) => s.isActive);
   const isLoaded = useStemStore((s) => s.isLoaded);
   const loadingProgress = useStemStore((s) => s.loadingProgress);
@@ -22,6 +26,7 @@ export function TrackMixer({ onActivate }: TrackMixerProps) {
   const setIsActive = useStemStore((s) => s.setIsActive);
 
   const handleActivate = useCallback(() => {
+    resumeAudioContext(); // Must be in user-gesture stack before any async work
     setIsActive(true);
     onActivate();
   }, [onActivate, setIsActive]);
@@ -30,16 +35,72 @@ export function TrackMixer({ onActivate }: TrackMixerProps) {
     setIsActive(false);
   }, [setIsActive]);
 
-  // Not activated yet — show toggle button
+  const handleRetriggerSeparation = useCallback(async () => {
+    if (!song) return;
+    try {
+      await triggerStemSeparation(song.id);
+    } catch {
+      // ignore — will be reflected in next poll
+    }
+  }, [song]);
+
+  // Determine if stems are available
+  const hasStem = song?.audio?.hasStem ?? false;
+  const stemStatus = song?.stemStatus ?? (hasStem ? 'done' : 'idle');
+  const isUserSong = song?.source === 'user';
+
+  // Not activated yet — show toggle button or status
   if (!isActive) {
-    return (
-      <div className={styles.container}>
-        <button className={styles.activateBtn} onClick={handleActivate}>
-          <span className={styles.activateIcon}>🎛️</span>
-          <span>分轨混音</span>
-        </button>
-      </div>
-    );
+    // User song: stem separation in progress
+    if (isUserSong && stemStatus === 'processing') {
+      return (
+        <div className={styles.container}>
+          <button className={styles.activateBtn} disabled>
+            <span className={styles.activateIcon}>🎛️</span>
+            <span>分轨处理中…</span>
+          </button>
+        </div>
+      );
+    }
+
+    // User song: stem separation failed
+    if (isUserSong && stemStatus === 'error') {
+      return (
+        <div className={styles.container}>
+          <button className={styles.activateBtn} onClick={handleRetriggerSeparation}>
+            <span className={styles.activateIcon}>🎛️</span>
+            <span>分轨失败，点击重试</span>
+          </button>
+        </div>
+      );
+    }
+
+    // User song: not yet separated and not started
+    if (isUserSong && !hasStem && stemStatus === 'idle') {
+      return (
+        <div className={styles.container}>
+          <button className={styles.activateBtn} onClick={handleRetriggerSeparation}>
+            <span className={styles.activateIcon}>🎛️</span>
+            <span>分轨混音（点击开始分轨）</span>
+          </button>
+        </div>
+      );
+    }
+
+    // Stems available (preset or user done) — normal activate button
+    if (hasStem) {
+      return (
+        <div className={styles.container}>
+          <button className={styles.activateBtn} onClick={handleActivate}>
+            <span className={styles.activateIcon}>🎛️</span>
+            <span>分轨混音</span>
+          </button>
+        </div>
+      );
+    }
+
+    // Preset song without stems — hide mixer entirely
+    return null;
   }
 
   // Loading state

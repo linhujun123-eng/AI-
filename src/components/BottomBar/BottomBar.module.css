@@ -302,4 +302,92 @@
     min-width: 54px;
     text-align: center;
   }
+
+  /* ── Pitch section inside popover ── */
+  .pitchSection {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .pitchSectionLabel {
+    font-size: 12px;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+
+  .pitchControls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pitchStepBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .pitchStepBtn:active:not(:disabled) {
+    border-color: var(--pink);
+    color: var(--pink);
+    background: rgba(255, 45, 149, 0.1);
+  }
+
+  .pitchStepBtn:disabled {
+    opacity: 0.3;
+  }
+
+  .pitchDisplay {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text2);
+    min-width: 48px;
+    text-align: center;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill, 20px);
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .pitchDisplay:active {
+    border-color: var(--pink);
+  }
+
+  .pitchDisplayActive {
+    color: var(--pink);
+    border-color: var(--pink);
+    background: rgba(255, 45, 149, 0.1);
+  }
+
+  /* ── Pitch badge on speed button ── */
+  .speedBtnPitch {
+    gap: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .pitchBadge {
+    font-size: 10px;
+    color: var(--pink);
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: rgba(255, 45, 149, 0.15);
+    line-height: 1.2;
+  }
 }

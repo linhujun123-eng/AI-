@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { ChordEvent } from '../../types/song';
 import { usePlayerStore } from '../../stores/player-store';
+import { usePitchStore } from '../../stores/pitch-store';
+import { transposeChord } from '../../utils/transpose';
 import styles from './ChordDisplay.module.css';
 
 interface ChordDisplayProps {
@@ -98,6 +100,15 @@ export function ChordDisplay({ chords }: ChordDisplayProps) {
   const nextIdx = currentIdx + 1 < chords.length ? currentIdx + 1 : -1;
   const nextChord = nextIdx >= 0 ? chords[nextIdx].chord : '';
 
+  // Transpose chord names based on pitch shift
+  const pitchSemitones = usePitchStore((s) => s.pitchSemitones);
+  const displayCurrent = currentChord
+    ? transposeChord(currentChord, pitchSemitones)
+    : '';
+  const displayNext = nextChord
+    ? transposeChord(nextChord, pitchSemitones)
+    : '';
+
   // Countdown urgency: show visual hint when <2s to next chord
   const isApproaching = timeToNext >= 0 && timeToNext < 2;
   const isImminent = timeToNext >= 0 && timeToNext < 0.5;
@@ -111,14 +122,14 @@ export function ChordDisplay({ chords }: ChordDisplayProps) {
         <span
           className={`${styles.chord} ${isImminent ? styles.chordPulse : ''}`}
         >
-          {currentChord || '—'}
+          {displayCurrent || '—'}
         </span>
       </div>
 
-      {nextChord && nextChord !== currentChord && (
+      {displayNext && displayNext !== displayCurrent && (
         <div className={`${styles.next} ${isApproaching ? styles.nextApproaching : ''}`}>
           <span className={styles.label}>下一个</span>
-          <span className={styles.nextChord}>{nextChord}</span>
+          <span className={styles.nextChord}>{displayNext}</span>
           {timeToNext >= 0 && (
             <span className={styles.countdown}>
               {timeToNext < 1 ? '即将切换' : `${timeToNext.toFixed(1)}s`}

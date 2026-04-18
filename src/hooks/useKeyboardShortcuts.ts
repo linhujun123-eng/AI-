@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../stores/player-store';
 import { useABLoopStore } from '../stores/ab-loop-store';
+import { usePitchStore } from '../stores/pitch-store';
+import { resumeAudioContext } from '../services/audio-context';
 
 export function useKeyboardShortcuts() {
 
@@ -24,6 +26,7 @@ export function useKeyboardShortcuts() {
       switch (e.code) {
         case 'Space':
           e.preventDefault();
+          resumeAudioContext(); // keydown is a user gesture
           toggle?.();
           break;
         case 'ArrowLeft':
@@ -33,6 +36,16 @@ export function useKeyboardShortcuts() {
         case 'ArrowRight':
           e.preventDefault();
           seek?.(Math.min(state.duration, state.currentTime + 5));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          resumeAudioContext(); // keydown is a user gesture
+          usePitchStore.getState().stepPitch(1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          resumeAudioContext(); // keydown is a user gesture
+          usePitchStore.getState().stepPitch(-1);
           break;
         case 'KeyA':
           if (!e.metaKey && !e.ctrlKey) {

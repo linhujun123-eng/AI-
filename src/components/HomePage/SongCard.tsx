@@ -100,9 +100,12 @@ export function SongCard({ song }: SongCardProps) {
 
   return (
     <GlassPanel className={styles.card}>
-      <button
+      <div
         className={styles.inner}
+        role="button"
+        tabIndex={0}
         onClick={() => navigate(`/practice/${song.id}`)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/practice/${song.id}`); }}
       >
         {/* Cover Emoji */}
         <div className={styles.cover}>
@@ -165,7 +168,7 @@ export function SongCard({ song }: SongCardProps) {
             )}
           </div>
         )}
-      </button>
+      </div>
     </GlassPanel>
   );
 }
