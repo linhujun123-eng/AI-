@@ -28,5 +28,14 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# Scripts (dev tools, not needed for deployment)
-scripts/
+# Runtime data (user uploads, DB, stems)
+data/
+
+# Audio assets (large binary files)
+public/audio/**/*.mp3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
